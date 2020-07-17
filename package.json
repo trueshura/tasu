@@ -42,10 +42,10 @@
   "devDependencies": {
     "chai": "^3.5.0",
     "coveralls": "^3.0.4",
-    "mocha": "^5.2.0",
+    "mocha": "^8.0.1",
     "nyc": "^14.1.1",
     "sinon": "^1.17.7",
-    "snyk": "^1.192.3"
+    "snyk": "^1.362.1"
   },
   "snyk": true
 }
