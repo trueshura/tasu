@@ -1,17 +1,18 @@
 const nats = require('nats');
 const TRID = require('trid');
+const EventEmitter = require('events');
 const Logger = require('./lib/logger');
 const RequestError = require('./lib/RequestError');
 
-
-module.exports = class {
+module.exports = class extends EventEmitter {
 
     constructor(options) {
+        super();
 
         const defaults = {
             url: 'nats://localhost:4222',
             requestTimeout: 10000,
-            group: 'default',
+            group: 'default'
         };
         this._options = {...defaults, ...options};
         const {group, level} = this._options;
@@ -28,18 +29,22 @@ module.exports = class {
                 this._logger.info('connected to NATS server:', this._nats.currentServer.url.host);
                 this._logger.info('id:', this.id);
                 this._logger.info('group:', this._options.group);
-                resolve()
+                resolve();
             });
         });
 
         this._nats.on('error', (error) => {
 
-            this._logger.error(`${error.message}${error.code ? ' (code: '+error.code+')' : ''}`);
+            this._logger.error(`${error.message}${error.code ? ' (code: ' + error.code + ')' : ''}`);
             if (error.code === 'CONN_ERR') {
-                process.exit(1);
+                this.emit('end', error.message);
+            } else {
+                this.emit('error', error);
             }
-            else
-                throw error;
+        });
+
+        this._nats.on('close', () => {
+            this.emit('end', 'Connection was closed. No reconnect attempts will be made');
         });
 
         this._nats.on('disconnect', () => {
@@ -63,21 +68,18 @@ module.exports = class {
         });
     }
 
-
     connected() {
 
         return this.readyPromise;
     }
 
-
     publish(subject, message) {
 
         this._logger.debug('publishing to', subject, message);
         this._nats.publish(subject, JSON.stringify(message), () => {
-            this._logger.debug('message published', subject, message)
-        })
+            this._logger.debug('message published', subject, message);
+        });
     };
-
 
     // returned by `listen`, not to be used directly
 
@@ -85,15 +87,16 @@ module.exports = class {
 
         if (error) {
             this._logger.debug('sending error response to', replyTo, error);
-            this._nats.publish(replyTo, JSON.stringify([{message: error.message || error.detail, stack: error.stack}]), () => {
-                this._logger.debug('error response sent to', replyTo)
-            })
+            this._nats.publish(replyTo, JSON.stringify([{message: error.message || error.detail, stack: error.stack}]),
+                () => {
+                    this._logger.debug('error response sent to', replyTo);
+                }
+            );
         } else {
             this._nats.publish(replyTo, JSON.stringify([null, response]), () => {
-            })
+            });
         }
     };
-
 
     // subscribe to point-to-point requests
 
@@ -111,7 +114,6 @@ module.exports = class {
         });
     };
 
-
     // subscribe to broadcasts
 
     subscribe(subject, done) {
@@ -120,9 +122,8 @@ module.exports = class {
         return this._nats.subscribe(subject, (message, replyTo, subject) => {
             this._logger.debug('got broadcast', subject, message);
             done(JSON.parse(message), replyTo, subject);
-        })
+        });
     };
-
 
     // subscribe as queue worker
 
@@ -133,13 +134,12 @@ module.exports = class {
         return this._nats.subscribe(subject, {queue: group}, (message, reply, subject) => {
             this._logger.debug('processing', subject, message);
             done(JSON.parse(message), subject);
-        })
+        });
     };
-
 
     // request one response
 
-    request(subject, message={}) {
+    request(subject, message = {}) {
 
         const meta = JSON.parse(JSON.stringify(message));  // important to clone here, as we are rewriting meta
         const id = this._trid.seq();
@@ -160,10 +160,9 @@ module.exports = class {
                         resolve(res);
                     }
                 }
-            })
+            });
         });
     };
-
 
     // unsubscribe from subscription by id
 
@@ -172,7 +171,6 @@ module.exports = class {
         this._logger.debug(`unsubscribing from ${sid}`);
         this._nats.unsubscribe(sid);
     };
-
 
     // subscribe, receive, unsubscribe
 
@@ -186,7 +184,6 @@ module.exports = class {
         });
         return sid;
     }
-
 
     // close underlying connection with NATS
 
