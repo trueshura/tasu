@@ -214,12 +214,14 @@ describe('tasu: options set', () => {
         });
 
         it('exits on connection error', (done) => {
-            const sandbox = sinon.sandbox.create({useFakeTimers : true});
-            const exitStub  = sandbox.stub(process, 'exit');
+            const sandbox = sinon.createSandbox({useFakeTimers : true});
+            const errHandler = sinon.fake();
+            tasu.on('end', errHandler);
             const error = new Error('synthetic connection error');
             error.code = 'CONN_ERR';
             tasu._nats.emit('error', error);
-            sinon.assert.calledOnce(exitStub);
+
+            sinon.assert.calledOnce(errHandler);
             sandbox.restore();
             done();
         })
