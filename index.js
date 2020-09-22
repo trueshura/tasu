@@ -98,18 +98,36 @@ module.exports = class extends EventEmitter {
         }
     };
 
-    // subscribe to point-to-point requests
+    /**
+     * subscribe to point-to-point requests
+     *
+     * @see https://docs.nats.io/nats-concepts/queue vs
+     *      https://docs.nats.io/nats-concepts/reqreply
+     *
+     * if you don't want to reply to response (we reply with return) just throw undefined
+     *
+     * @param {String} subject
+     * @param {Function} done - async handler
+     * @param {Boolean} bGroup - will use groups (old behavior) or regular request-response
+     * @return {Promise<unknown>}
+     */
+    listen(subject, done, bGroup = true) {
 
-    listen(subject, done) {
-
-        const group = subject + '.listeners';
-        this._logger.debug('subscribing to requests', subject, 'as member of', group);
-        return this._nats.subscribe(subject, {queue: group}, async (message, reply) => {
+        const objOpts = {};
+        let strLogRecord = 'subscribing to requests ' + subject;
+        if (bGroup) {
+            objOpts.group = subject + '.listeners';
+            strLogRecord += ' as member of ' + objOpts.group;
+        }
+        this._logger.debug(strLogRecord);
+        return this._nats.subscribe(subject, objOpts, async (message, reply) => {
             try {
                 const result = await done(JSON.parse(message));
                 this._respond(null, reply, result);
             } catch (error) {
-                this._respond(error, reply);
+
+                // we just don't want to reply
+                if (error) this._respond(error, reply);
             }
         });
     };
@@ -137,8 +155,12 @@ module.exports = class extends EventEmitter {
         });
     };
 
-    // request one response
-
+    /**
+     *
+     * @param subject
+     * @param message
+     * @return {Promise<unknown>}
+     */
     request(subject, message = {}) {
 
         const meta = JSON.parse(JSON.stringify(message));  // important to clone here, as we are rewriting meta
