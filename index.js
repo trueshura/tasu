@@ -53,6 +53,7 @@ module.exports = class extends EventEmitter {
                 this._logger.error('nats disconnected');
             }
             this._state = 'disconnected';
+            this.emit('disconnected', 'Nats disconnected. Attempting to reconnect');
         });
 
         this._nats.on('reconnecting', () => {
