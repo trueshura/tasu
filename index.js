@@ -66,6 +66,7 @@ module.exports = class extends EventEmitter {
 
             this._state = 'connected';
             this._logger.info('nats reconnected');
+            this.emit('reconnect');
         });
     }
 
