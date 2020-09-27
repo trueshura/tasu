@@ -38,9 +38,8 @@ module.exports = class extends EventEmitter {
             this._logger.error(`${error.message}${error.code ? ' (code: ' + error.code + ')' : ''}`);
             if (error.code === 'CONN_ERR') {
                 this.emit('end', error.message);
-            } else {
-                this.emit('error', error);
             }
+            this.emit('error', error);
         });
 
         this._nats.on('close', () => {
