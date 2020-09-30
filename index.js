@@ -173,7 +173,13 @@ module.exports = class extends EventEmitter {
                     this._logger.error('[!!', id, '!!] timeout', subject, message);
                     reject(new RequestError('response timeout', id));
                 } else {
-                    const [error, res] = JSON.parse(response);
+                    const resp = JSON.parse(response);
+                    if (!Array.isArray(resp)) {
+                        return reject(
+                            new RequestError('Bad response! Expected "[error, response]"', id));
+                    }
+
+                    const [error, res] = resp;
                     if (error) {
                         this._logger.error('[!!', id, '!!] ', error.message, error.stack);
                         reject(new RequestError(error.message, id));
@@ -182,6 +188,7 @@ module.exports = class extends EventEmitter {
                         this._logger.debug('[<<', id, '<<]', subject, meta);
                         resolve(res);
                     }
+
                 }
             });
         });

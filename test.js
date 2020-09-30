@@ -2,7 +2,6 @@ const {assert} = require('chai');
 const Tasuu = require('./');
 const sinon = require('sinon');
 
-
 describe('tasu: empty options', () => {
 
     const tasu = new Tasuu();
@@ -22,7 +21,6 @@ describe('tasu: empty options', () => {
     });
 
 });
-
 
 describe('tasu: options set', () => {
 
@@ -57,6 +55,18 @@ describe('tasu: options set', () => {
                 delete error.message;
                 throw error;
             });
+
+            tasu._nats.subscribe(
+                'request.resp.from.native.client',
+                {}, (message, replyTo) => {
+                    tasu._nats.publish(replyTo, JSON.stringify({a: 1}),
+                        () => {
+                            console.error('error response sent to', replyTo);
+                        }
+                    );
+                }
+            );
+
             done();
         });
 
@@ -69,7 +79,7 @@ describe('tasu: options set', () => {
             const response = await tasu.request('request.password', {
                 password: 'should not see this',
                 data: {password: 'should not see this also'}
-                });
+            });
             assert.equal(response.password, 'should not see this');
             assert.equal(response.data.password, 'should not see this also');
         });
@@ -105,6 +115,15 @@ describe('tasu: options set', () => {
                 assert.isOk(error.requestId);
             }
         }).timeout(110);
+
+        it('receive invalid response from "non-tasu" (native) client', async () => {
+            try {
+                await tasu.request('request.resp.from.native.client', {foo: 'bar'});
+            } catch (error) {
+                assert.equal(error.message, 'Bad response! Expected "[error, response]"');
+                assert.isOk(error.requestId);
+            }
+        }).timeout(5000);
     });
 
     describe('subscribe', () => {
@@ -114,10 +133,10 @@ describe('tasu: options set', () => {
                 assert.equal(message.foo, 'bar');
                 assert.isNotOk(replyTo);
                 assert.equal(subject, 'broadcast');
-                done()
+                done();
             });
             tasu.publish('broadcast', {foo: 'bar'});
-        })
+        });
     });
 
     describe('listen', () => {
@@ -155,10 +174,10 @@ describe('tasu: options set', () => {
             tasu.process('process', (message, subject) => {
                 assert.equal(message.foo, 'bar');
                 assert.equal(subject, 'process');
-                done()
+                done();
             });
             tasu.publish('process', {foo: 'bar'});
-        })
+        });
     });
 
     describe('publish', () => {
@@ -175,14 +194,14 @@ describe('tasu: options set', () => {
     describe('unsubscribe', () => {
 
         it('unsubscribes from NATS subject', (done) => {
-            const sid = tasu.subscribe('unsubscribe', ()=>{});
+            const sid = tasu.subscribe('unsubscribe', () => {});
             tasu._nats.once('unsubscribe', (subId, subject) => {
                 assert.equal(subId, sid);
                 assert.equal(subject, 'unsubscribe');
                 done();
             });
             tasu.unsubscribe(sid);
-        })
+        });
     });
 
     describe('subOnce', () => {
@@ -208,13 +227,13 @@ describe('tasu: options set', () => {
                 tasu._nats.emit('error', error);
             } catch (error) {
                 assert.equal(error.message, 'synthetic error');
-                done()
+                done();
             }
 
         });
 
         it('exits on connection error', (done) => {
-            const sandbox = sinon.createSandbox({useFakeTimers : true});
+            const sandbox = sinon.createSandbox({useFakeTimers: true});
             const errHandler = sinon.fake();
             const endHandler = sinon.fake();
             tasu.on('end', endHandler);
@@ -227,7 +246,7 @@ describe('tasu: options set', () => {
             sinon.assert.calledOnce(endHandler);
             sandbox.restore();
             done();
-        })
+        });
     });
 
     describe('connection events', () => {
@@ -257,7 +276,7 @@ describe('tasu: options set', () => {
             tasu.close();
             assert.isTrue(tasu._nats.closed);
             done();
-        })
+        });
     });
 
 });
