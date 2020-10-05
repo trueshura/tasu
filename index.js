@@ -12,7 +12,8 @@ module.exports = class extends EventEmitter {
         const defaults = {
             url: 'nats://localhost:4222',
             requestTimeout: 10000,
-            group: 'default'
+            group: 'default',
+            level: process.env.LOG_LEVEL || 'error'
         };
         this._options = {...defaults, ...options};
         const {group, level} = this._options;
