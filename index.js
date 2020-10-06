@@ -9,11 +9,12 @@ module.exports = class extends EventEmitter {
     constructor(options) {
         super();
 
+        const strLevel = process.env.LOG_LEVEL || 'error';
         const defaults = {
             url: 'nats://localhost:4222',
             requestTimeout: 10000,
             group: 'default',
-            level: process.env.LOG_LEVEL || 'error'
+            level: strLevel.toLowerCase()
         };
         this._options = {...defaults, ...options};
         const {group, level} = this._options;
