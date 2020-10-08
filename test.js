@@ -19,6 +19,10 @@ describe('tasu: empty options', () => {
         done();
     });
 
+    it('should change log level', async () => {
+        tasu.changeLogLevel('debug');
+    });
+
 });
 
 describe('tasu: options set', () => {

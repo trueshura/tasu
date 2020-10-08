@@ -232,4 +232,14 @@ module.exports = class extends EventEmitter {
         this._logger.info('closing connection with NATS:', this._nats.currentServer.url.host);
         this._nats.close();
     }
+
+    /**
+     * It will change loglevel at runtime
+     * We use winston.transports.Console for now @see logger.js
+     *
+     * @param {String} strNewLevel - 'debug', 'error'
+     */
+    changeLogLevel(strNewLevel) {
+        this._logger.transports.console.level = strNewLevel;
+    }
 };
