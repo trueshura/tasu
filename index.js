@@ -6,6 +6,10 @@ const RequestError = require('./lib/RequestError');
 
 module.exports = class extends EventEmitter {
 
+    /**
+     *
+     * @param options.group - used only for debug purposes
+     */
     constructor(options) {
         super();
 
@@ -20,9 +24,8 @@ module.exports = class extends EventEmitter {
         const {group, level} = this._options;
         this._logger = this._options.logger || Logger({group, level});
         this._nats = nats.connect(options);
-        this._trid = new TRID({prefix: this._options.group});
+        this._trid = new TRID({prefix: group});
         this.id = this._trid.base();
-        this.group = this._options.group;
 
         this.readyPromise = new Promise(resolve => {
 
@@ -30,7 +33,7 @@ module.exports = class extends EventEmitter {
                 this._state = 'connected';
                 this._logger.info('connected to NATS server:', this._nats.currentServer.url.host);
                 this._logger.info('id:', this.id);
-                this._logger.info('group:', this._options.group);
+                this._logger.info('group:', group);
                 resolve();
             });
         });
@@ -111,16 +114,16 @@ module.exports = class extends EventEmitter {
      *
      * @param {String} subject
      * @param {Function} done - async handler
-     * @param {Boolean} bGroup - will use groups (old behavior) or regular request-response
+     * @param {Boolean} bQueue - will use queue (default: only one receiver)
      * @return {Promise<unknown>}
      */
-    listen(subject, done, bGroup = true) {
+    listen(subject, done, bQueue = true) {
 
         const objOpts = {};
         let strLogRecord = 'subscribing to requests ' + subject;
-        if (bGroup) {
-            objOpts.group = subject + '.listeners';
-            strLogRecord += ' as member of ' + objOpts.group;
+        if (bQueue) {
+            objOpts.queue = subject + '.listeners';
+            strLogRecord += ' as member of ' + objOpts.queue;
         }
         this._logger.debug(strLogRecord);
         return this._nats.subscribe(subject, objOpts, async (message, reply) => {
@@ -135,28 +138,34 @@ module.exports = class extends EventEmitter {
         });
     };
 
-    // subscribe to broadcasts
-
-    subscribe(subject, done) {
-
-        this._logger.debug('subscribing to broadcasts', subject);
-        return this._nats.subscribe(subject, (message, replyTo, subject) => {
+    /**
+     * subscribe to broadcasts
+     *
+     * @see https://docs.nats.io/nats-concepts/queue vs
+     *      https://docs.nats.io/nats-concepts/reqreply
+     *
+     * if you don't want to reply to response (we reply with return) just throw undefined
+     *
+     * @param {String} subject
+     * @param {Function} done - async handler
+     * @param {Boolean} bQueue - will use queue (default: everyone receive)
+     * @return {Promise<unknown>}
+     */
+    subscribe(subject, done, bQueue = false) {
+        const objOpts = {};
+        let strLogRecord = 'subscribing to broadcasts ' + subject;
+        if (bQueue) {
+            objOpts.queue = subject + '.listeners';
+            strLogRecord += ' as member of ' + objOpts.queue;
+        }
+        this._logger.debug(strLogRecord, objOpts, subject);
+        return this._nats.subscribe(subject, objOpts, (message, replyTo, subject) => {
             this._logger.debug('got broadcast', subject, message);
             done(JSON.parse(message), replyTo, subject);
         });
     };
 
-    // subscribe as queue worker
-
-    process(subject, done) {
-
-        const group = subject + '.workers.' + this._options.group;
-        this._logger.debug('subscribing to process', subject, 'queue as member of', group);
-        return this._nats.subscribe(subject, {queue: group}, (message, reply, subject) => {
-            this._logger.debug('processing', subject, message);
-            done(JSON.parse(message), subject);
-        });
-    };
+    // process Absolete! see bQueue @listen
 
     /**
      *

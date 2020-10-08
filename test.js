@@ -16,7 +16,6 @@ describe('tasu: empty options', () => {
 
     it('runs ok', (done) => {
         assert.isOk(tasu.id);
-        assert.equal(tasu.group, 'default');
         done();
     });
 
@@ -165,25 +164,12 @@ describe('tasu: options set', () => {
             const bar = await tasu.request('request.listen.number');
             assert.strictEqual(bar, 5);
         });
-
-    });
-
-    describe('process', () => {
-
-        it('processes a queue message as group member', (done) => {
-            tasu.process('process', (message, subject) => {
-                assert.equal(message.foo, 'bar');
-                assert.equal(subject, 'process');
-                done();
-            });
-            tasu.publish('process', {foo: 'bar'});
-        });
     });
 
     describe('publish', () => {
 
         it('publishes a message to a subject', (done) => {
-            tasu.process('publish', (message) => {
+            tasu.subscribe('publish', (message) => {
                 assert.equal(message.message, 'yay!');
                 done();
             });
