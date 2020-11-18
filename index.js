@@ -93,14 +93,19 @@ module.exports = class extends EventEmitter {
 
         if (error) {
             this._logger.debug('sending error response to', replyTo, error);
-            this._nats.publish(replyTo, JSON.stringify([{message: error.message || error.detail, stack: error.stack}]),
+            this._nats.publish(
+                replyTo,
+                JSON.stringify([{message: error.message || error.detail, stack: error.stack}]),
                 () => {
                     this._logger.debug('error response sent to', replyTo);
                 }
             );
         } else {
-            this._nats.publish(replyTo, JSON.stringify([null, response]), () => {
-            });
+            this._nats.publish(
+                replyTo,
+                JSON.stringify([null, response]),
+                () => {}
+            );
         }
     };
 
@@ -148,10 +153,10 @@ module.exports = class extends EventEmitter {
      *
      * @param {String} subject
      * @param {Function} done - async handler
-     * @param {Boolean} bQueue - will use queue (default: everyone receive)
+     * @param {Boolean} bQueue - will use queue (default: ONLY ONE receive)
      * @return {Promise<unknown>}
      */
-    subscribe(subject, done, bQueue = false) {
+    subscribe(subject, done, bQueue = true) {
         const objOpts = {};
         let strLogRecord = 'subscribing to broadcasts ' + subject;
         if (bQueue) {
