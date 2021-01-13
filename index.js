@@ -176,24 +176,26 @@ module.exports = class extends EventEmitter {
      *
      * @param subject
      * @param message
+     * @param {Number} msecTimeout - perRequest timeout for long running queries
      * @return {Promise<unknown>}
      */
-    request(subject, message = {}) {
+    request(subject, message = {}, msecTimeout) {
 
         const meta = JSON.parse(JSON.stringify(message));  // important to clone here, as we are rewriting meta
         const id = this._trid.seq();
         this._logger.debug('[>>', id, '>>]', subject, meta);
         return new Promise((resolve, reject) => {
-            this._nats.requestOne(subject, JSON.stringify(message), null, this._options.requestTimeout, (response) => {
-                if (response.code && response.code === nats.REQ_TIMEOUT) {
-                    this._logger.error('[!!', id, '!!] timeout', subject, message);
-                    reject(new RequestError('response timeout', id));
-                } else {
-                    const resp = JSON.parse(response);
-                    if (!Array.isArray(resp)) {
-                        return reject(
-                            new RequestError('Bad response! Expected "[error, response]"', id));
-                    }
+            this._nats.requestOne(subject, JSON.stringify(message), null, msecTimeout || this._options.requestTimeout,
+                (response) => {
+                    if (response.code && response.code === nats.REQ_TIMEOUT) {
+                        this._logger.error('[!!', id, '!!] timeout', subject, message);
+                        reject(new RequestError('response timeout', id));
+                    } else {
+                        const resp = JSON.parse(response);
+                        if (!Array.isArray(resp)) {
+                            return reject(
+                                new RequestError('Bad response! Expected "[error, response]"', id));
+                        }
 
                     const [error, res] = resp;
                     if (error) {

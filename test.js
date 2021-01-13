@@ -26,11 +26,12 @@ describe('tasu: empty options', () => {
 });
 
 describe('tasu: options set', () => {
+    const timeout = 100;
 
     const tasu = new Tasuu({  // a nats server should be running
         url: 'nats://localhost:4222',
         group: 'tests',
-        requestTimeout: 100
+        requestTimeout: timeout
     });
 
     before(async () => {
@@ -40,6 +41,17 @@ describe('tasu: options set', () => {
     describe('request', () => {
 
         before((done) => {
+            const sleep = (delay) => {
+                return new Promise(resolve => {
+                    setTimeout(() => resolve(), delay);
+                });
+            };
+
+            tasu.listen('request.long', async (message) => {
+                await sleep(timeout * 10);
+                return 42;
+            });
+
             tasu.listen('request.ok', (message) => {
                 return message;
             });
@@ -76,6 +88,21 @@ describe('tasu: options set', () => {
         it('performs a request and returns successful result', async () => {
             const {foo} = await tasu.request('request.ok', {foo: 'bar'});
             assert.equal(foo, 'bar');
+        });
+
+        it('timeout with default options', async () => {
+            try {
+                await tasu.request('request.long', {foo: 'bar'});
+            } catch (err) {
+                assert.equal(err.message, 'response timeout');
+                return;
+            }
+            assert('Unexpected success');
+        });
+
+        it('succeeded with per-request timeout', async () => {
+            const result = await tasu.request('request.long', {foo: 'bar'}, timeout * 20);
+            assert.equal(result, 42);
         });
 
         it('performs a request and screens password field in logs', async () => {
